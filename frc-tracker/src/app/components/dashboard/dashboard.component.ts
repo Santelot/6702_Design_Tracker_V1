@@ -58,13 +58,13 @@ import { GlassCardComponent, StatCardComponent, WeightProgressBarComponent } fro
           />
           <app-stat-card
             title="Subsystems"
-            [value]="summary.subsystem_count?.toString() || '0'"
+            [value]="summary.subsystem_count.toString() || '0'"
             icon="layers"
             color="cyan"
           />
           <app-stat-card
             title="Components"
-            [value]="summary.component_count?.toString() || '0'"
+            [value]="summary.component_count.toString() || '0'"
             icon="box"
             color="amber"
           />

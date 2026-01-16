@@ -2,6 +2,16 @@
 // FRC DESIGN TRACKER - TYPESCRIPT INTERFACES
 // ============================================================================
 
+// Unit system types
+export type UnitSystem = 'imperial' | 'metric';
+export type DualUnitMode = 'primary' | 'dual';
+
+export interface UserPreferences {
+  unit_system: UnitSystem;
+  dual_units: boolean; // Show both units when true
+  theme: 'dark' | 'light';
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -11,7 +21,10 @@ export interface Project {
   weight_limit_kg: number;
   safety_factor: number;
   image_url?: string;
+  logo_url?: string; // Team logo
   is_archived: boolean;
+  unit_system: UnitSystem;
+  show_dual_units: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -221,6 +234,16 @@ export interface InventoryItem {
 // FORM INTERFACES
 // ============================================================================
 
+// Component type for the add component modal
+export type ComponentType = 'profile' | 'fastener' | 'cots' | 'custom';
+
+export interface ComponentTypeOption {
+  value: ComponentType;
+  label: string;
+  description: string;
+  icon: string;
+}
+
 export interface NewComponent {
   name: string;
   category_id: string;
@@ -231,6 +254,9 @@ export interface NewComponent {
   weight_per_unit_kg: string;
   properties: Record<string, any>;
   notes: string;
+  // Additional fields for COTS components
+  part_number?: string;
+  supplier?: string;
 }
 
 export interface NewSubsystem {
@@ -259,6 +285,10 @@ export interface NewFastener {
 export interface ProjectForm {
   name: string;
   team_number: string;
+  season_year: number;
   weight_limit_kg: number;
   safety_factor: number;
+  unit_system: UnitSystem;
+  show_dual_units: boolean;
+  logo_url: string;
 }

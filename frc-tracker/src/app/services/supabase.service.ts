@@ -5,6 +5,7 @@ import {
   Material,
   ComponentCategory,
   ProfileType,
+  ProfileInput,
   Fastener,
   Subsystem,
   Component,
@@ -12,11 +13,17 @@ import {
   SubsystemWeightSummary,
   CategoryWeightSummary,
   FastenerShoppingItem,
-  InventoryItem
+  InventoryItem,
+  UnitSystem
 } from '../models';
 
 const SUPABASE_URL = 'https://ymounjmyaomvibndsrwz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inltb3Vuam15YW9tdmlibmRzcnd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg1MDY1MTgsImV4cCI6MjA4NDA4MjUxOH0.ZNNNkteI2tl3ijVSF7cWoOPMreyRBLTw7LvwI233WeA';
+
+// Conversion constants
+const KG_TO_LB = 2.20462;
+const MM_TO_IN = 0.0393701;
+const KG_M3_TO_LB_IN3 = 0.0000361273;
 
 @Injectable({
   providedIn: 'root'
@@ -26,6 +33,7 @@ export class SupabaseService {
 
   // Signals para estado reactivo
   loading = signal(true);
+  saving = signal(false);
   error = signal<string | null>(null);
 
   // Data signals
@@ -42,24 +50,183 @@ export class SupabaseService {
   fastenerShoppingList = signal<FastenerShoppingItem[]>([]);
   inventory = signal<InventoryItem[]>([]);
 
+  // Track current subsystem for component loading
+  private currentSubsystemId = signal<string | null>(null);
+
   constructor() {
     this.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 
   // ============================================================================
-  // UTILITY FUNCTIONS
+  // UNIT CONVERSION UTILITIES
   // ============================================================================
 
-  formatWeight(kg: number | null | undefined, unit: 'kg' | 'lb' | 'g' = 'kg'): string {
+  private getUnitSystem(): UnitSystem {
+    return this.project()?.unit_system || 'imperial';
+  }
+
+  private showDualUnits(): boolean {
+    return this.project()?.show_dual_units || false;
+  }
+
+  kgToLb(kg: number): number {
+    return kg * KG_TO_LB;
+  }
+
+  lbToKg(lb: number): number {
+    return lb / KG_TO_LB;
+  }
+
+  mmToIn(mm: number): number {
+    return mm * MM_TO_IN;
+  }
+
+  inToMm(inches: number): number {
+    return inches / MM_TO_IN;
+  }
+
+  formatWeight(kg: number | null | undefined, forcedUnit?: 'kg' | 'lb' | 'g'): string {
     if (kg === null || kg === undefined) return '—';
-    if (unit === 'lb') return `${(kg * 2.20462).toFixed(3)} lb`;
-    if (unit === 'g') return `${(kg * 1000).toFixed(1)} g`;
-    return `${kg.toFixed(4)} kg`;
+    
+    // Handle grams specifically
+    if (forcedUnit === 'g') {
+      return `${(kg * 1000).toFixed(1)} g`;
+    }
+    
+    const unit = forcedUnit || (this.getUnitSystem() === 'imperial' ? 'lb' : 'kg');
+    const showDual = this.showDualUnits() && !forcedUnit;
+    
+    if (unit === 'lb') {
+      const lb = this.kgToLb(kg);
+      const primary = `${lb.toFixed(3)} lb`;
+      if (showDual) {
+        return `${primary} (${kg.toFixed(4)} kg)`;
+      }
+      return primary;
+    } else {
+      const primary = `${kg.toFixed(4)} kg`;
+      if (showDual) {
+        const lb = this.kgToLb(kg);
+        return `${primary} (${lb.toFixed(3)} lb)`;
+      }
+      return primary;
+    }
+  }
+
+  formatWeightShort(kg: number | null | undefined): string {
+    if (kg === null || kg === undefined) return '—';
+    
+    const unit = this.getUnitSystem() === 'imperial' ? 'lb' : 'kg';
+    
+    if (unit === 'lb') {
+      return `${this.kgToLb(kg).toFixed(2)} lb`;
+    }
+    return `${kg.toFixed(3)} kg`;
+  }
+
+  formatLength(mm: number | null | undefined, forcedUnit?: 'mm' | 'in'): string {
+    if (mm === null || mm === undefined) return '—';
+    
+    const unit = forcedUnit || (this.getUnitSystem() === 'imperial' ? 'in' : 'mm');
+    const showDual = this.showDualUnits() && !forcedUnit;
+    
+    if (unit === 'in') {
+      const inches = this.mmToIn(mm);
+      const primary = `${inches.toFixed(3)} in`;
+      if (showDual) {
+        return `${primary} (${mm.toFixed(2)} mm)`;
+      }
+      return primary;
+    } else {
+      const primary = `${mm.toFixed(2)} mm`;
+      if (showDual) {
+        const inches = this.mmToIn(mm);
+        return `${primary} (${inches.toFixed(3)} in)`;
+      }
+      return primary;
+    }
+  }
+
+  formatDensity(kgM3: number | null | undefined): string {
+    if (kgM3 === null || kgM3 === undefined) return '—';
+    
+    const unit = this.getUnitSystem();
+    const showDual = this.showDualUnits();
+    
+    if (unit === 'imperial') {
+      const lbIn3 = kgM3 * KG_M3_TO_LB_IN3;
+      const primary = `${lbIn3.toFixed(6)} lb/in³`;
+      if (showDual) {
+        return `${primary} (${kgM3.toFixed(0)} kg/m³)`;
+      }
+      return primary;
+    } else {
+      const primary = `${kgM3.toFixed(0)} kg/m³`;
+      if (showDual) {
+        const lbIn3 = kgM3 * KG_M3_TO_LB_IN3;
+        return `${primary} (${lbIn3.toFixed(6)} lb/in³)`;
+      }
+      return primary;
+    }
+  }
+
+  formatArea(mm2: number | null | undefined): string {
+    if (mm2 === null || mm2 === undefined) return '—';
+    
+    const unit = this.getUnitSystem();
+    const showDual = this.showDualUnits();
+    
+    if (unit === 'imperial') {
+      const in2 = mm2 * (MM_TO_IN * MM_TO_IN);
+      const primary = `${in2.toFixed(4)} in²`;
+      if (showDual) {
+        return `${primary} (${mm2.toFixed(2)} mm²)`;
+      }
+      return primary;
+    } else {
+      const primary = `${mm2.toFixed(2)} mm²`;
+      if (showDual) {
+        const in2 = mm2 * (MM_TO_IN * MM_TO_IN);
+        return `${primary} (${in2.toFixed(4)} in²)`;
+      }
+      return primary;
+    }
+  }
+
+  getWeightUnit(): string {
+    return this.getUnitSystem() === 'imperial' ? 'lb' : 'kg';
+  }
+
+  getLengthUnit(): string {
+    return this.getUnitSystem() === 'imperial' ? 'in' : 'mm';
+  }
+
+  getDensityUnit(): string {
+    return this.getUnitSystem() === 'imperial' ? 'lb/in³' : 'kg/m³';
   }
 
   formatPercent(value: number | null | undefined): string {
     if (value === null || value === undefined) return '—';
     return `${value.toFixed(1)}%`;
+  }
+
+  getProfileInputs(profile: ProfileType | null | undefined): { key: string; label: string; type: string; required: boolean; step?: number; default?: number }[] {
+    if (!profile) return [];
+    
+    // Parse required_inputs if it's a string (from database JSON)
+    let inputs = profile.required_inputs;
+    if (typeof inputs === 'string') {
+      try {
+        inputs = JSON.parse(inputs);
+      } catch {
+        return [];
+      }
+    }
+    
+    // Return empty array if not an array
+    if (!Array.isArray(inputs)) return [];
+    
+    return inputs;
   }
 
   calculateComponentWeight(
@@ -78,143 +245,199 @@ export class SupabaseService {
       case 'linear':
         if (!profile.cross_section_area_mm2 || !density) return null;
         const lengthM = (parseFloat(properties['length_mm']) || 0) / 1000;
+        if (lengthM <= 0) return null;
         return (profile.cross_section_area_mm2 / 1000000) * lengthM * density;
 
       case 'area':
         if (!density) return null;
-        const areaM2 = ((parseFloat(properties['length_mm']) || 0) * (parseFloat(properties['width_mm']) || 0)) / 1000000;
+        const areaM2 = ((parseFloat(properties['length_mm']) || 0) / 1000) *
+                       ((parseFloat(properties['width_mm']) || 0) / 1000);
         const thicknessM = (parseFloat(properties['thickness_mm']) || profile.default_thickness_mm || 0) / 1000;
+        if (areaM2 <= 0 || thicknessM <= 0) return null;
         return areaM2 * thicknessM * density;
 
       case 'volume':
         if (!density) return null;
-        const volumeM3 = ((parseFloat(properties['length_mm']) || 0) *
-          (parseFloat(properties['width_mm']) || 0) *
-          (parseFloat(properties['height_mm']) || 0)) / 1000000000;
+        const volumeM3 = ((parseFloat(properties['length_mm']) || 0) / 1000) *
+                         ((parseFloat(properties['width_mm']) || 0) / 1000) *
+                         ((parseFloat(properties['height_mm']) || 0) / 1000);
+        if (volumeM3 <= 0) return null;
         return volumeM3 * density;
+
+      case 'formula':
+        // Custom formula evaluation would go here
+        return null;
 
       default:
         return null;
     }
   }
 
-  getProfileInputs(profile: ProfileType): any[] {
-    if (!profile?.required_inputs) return [];
-    if (typeof profile.required_inputs === 'string') {
-      try {
-        return JSON.parse(profile.required_inputs);
-      } catch {
-        return [];
-      }
-    }
-    return profile.required_inputs;
-  }
-
   // ============================================================================
-  // FETCH ALL DATA
+  // INITIALIZATION
   // ============================================================================
 
-  async fetchAllData(): Promise<void> {
+  async initialize(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
-
     try {
-      // Fetch or create project
-      let { data: projects, error: projError } = await this.supabase
-        .from('projects')
-        .select('*')
-        .eq('is_archived', false)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (projError) throw projError;
-
-      let currentProject = projects?.[0];
-
-      // Create default project if none exists
-      if (!currentProject) {
-        const { data: newProject, error: createError } = await this.supabase
-          .from('projects')
-          .insert({
-            name: 'FRC 2025 Robot',
-            team_number: '0000',
-            season_year: 2025,
-            weight_limit_kg: 56.699,
-            safety_factor: 1.10
-          })
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        currentProject = newProject;
-      }
-
-      this.project.set(currentProject);
-
-      // Fetch subsystems first (needed for components query)
-      const { data: subsystemsData } = await this.supabase
-        .from('subsystems')
-        .select('*')
-        .eq('project_id', currentProject.id)
-        .eq('is_active', true)
-        .order('display_order');
-
-      this.subsystems.set(subsystemsData || []);
-
-      // Fetch all related data in parallel
-      const subsystemIds = (subsystemsData || []).map(s => s.id);
-
-      const [
-        { data: summaryData },
-        { data: subsystemSummaryData },
-        { data: categorySummaryData },
-        { data: categoriesData },
-        { data: materialsData },
-        { data: profilesData },
-        { data: fastenersData },
-        { data: componentsData },
-        { data: shoppingData },
-        { data: inventoryData }
-      ] = await Promise.all([
-        this.supabase.from('v_project_weight_summary').select('*').eq('project_id', currentProject.id).single(),
-        this.supabase.from('v_subsystem_weight_summary').select('*').eq('project_id', currentProject.id),
-        this.supabase.from('v_category_weight_summary').select('*').eq('project_id', currentProject.id),
-        this.supabase.from('component_categories').select('*').order('display_order'),
-        this.supabase.from('materials').select('*').or(`is_global.eq.true,project_id.eq.${currentProject.id}`).order('name'),
-        this.supabase.from('profile_types').select('*').or(`is_global.eq.true,project_id.eq.${currentProject.id}`).eq('is_active', true).order('name'),
-        this.supabase.from('fastener_catalog').select('*').or(`is_global.eq.true,project_id.eq.${currentProject.id}`).eq('is_active', true).order('name'),
-        subsystemIds.length > 0
-          ? this.supabase.from('components').select('*').in('subsystem_id', subsystemIds).order('display_order')
-          : Promise.resolve({ data: [] }),
-        this.supabase.from('v_fastener_shopping_list').select('*').eq('project_id', currentProject.id),
-        this.supabase.from('v_inventory_by_subsystem').select('*').eq('project_id', currentProject.id)
-      ]);
-
-      this.projectSummary.set(summaryData);
-      this.subsystemSummary.set(subsystemSummaryData || []);
-      this.categorySummary.set(categorySummaryData || []);
-      this.categories.set(categoriesData || []);
-      this.materials.set(materialsData || []);
-      this.profiles.set(profilesData || []);
-      this.fasteners.set(fastenersData || []);
-      this.components.set(componentsData || []);
-      this.fastenerShoppingList.set(shoppingData || []);
-      this.inventory.set(inventoryData || []);
-
-    } catch (err: any) {
-      console.error('Error fetching data:', err);
-      this.error.set(err.message);
+      await this.fetchAllData();
+    } catch (err) {
+      console.error('Initialization error:', err);
+      this.error.set('Failed to connect to database');
     } finally {
       this.loading.set(false);
     }
   }
 
-  // ============================================================================
-  // FETCH SUBSYSTEM COMPONENTS
-  // ============================================================================
+  async fetchAllData(): Promise<void> {
+    // 1. First fetch project and categories (categories don't depend on project)
+    await Promise.all([
+      this.fetchProject(),
+      this.fetchCategories(),
+    ]);
 
-  async fetchSubsystemComponents(subsystemId: string): Promise<void> {
-    if (!subsystemId) return;
+    // 2. Now that project exists, fetch everything that depends on it
+    const project = this.project();
+    if (project) {
+      await Promise.all([
+        this.fetchSubsystems(),
+        this.fetchMaterials(),
+        this.fetchProfiles(),
+        this.fetchFasteners(),
+        this.fetchProjectSummary(project.id),
+        this.fetchSubsystemSummary(project.id),
+        this.fetchCategorySummary(project.id),
+        this.fetchFastenerShoppingList(project.id),
+        this.fetchInventory(project.id),
+      ]);
+
+      // Re-fetch components if we have a current subsystem
+      const currentSub = this.currentSubsystemId();
+      if (currentSub) {
+        await this.fetchSubsystemComponents(currentSub);
+      }
+    }
+  }
+
+  private async fetchProject(): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('projects')
+      .select('*')
+      .eq('is_archived', false)
+      .limit(1)
+      .single();
+
+    if (!error && data) {
+      this.project.set(data);
+    }
+  }
+
+  private async fetchProjectSummary(projectId: string): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('v_project_weight_summary')
+      .select('*')
+      .eq('project_id', projectId)
+      .single();
+
+    if (!error && data) {
+      this.projectSummary.set(data);
+    }
+  }
+
+  private async fetchSubsystems(): Promise<void> {
+    const project = this.project();
+    if (!project) return;
+
+    const { data, error } = await this.supabase
+      .from('subsystems')
+      .select('*')
+      .eq('project_id', project.id)
+      .eq('is_active', true)
+      .order('display_order');
+
+    if (!error) {
+      this.subsystems.set(data || []);
+    }
+  }
+
+  private async fetchSubsystemSummary(projectId: string): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('v_subsystem_weight_summary')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (!error) {
+      this.subsystemSummary.set(data || []);
+    }
+  }
+
+  private async fetchCategorySummary(projectId: string): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('v_category_weight_summary')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (!error) {
+      this.categorySummary.set(data || []);
+    }
+  }
+
+  private async fetchCategories(): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('component_categories')
+      .select('*')
+      .order('display_order');
+
+    if (!error) {
+      this.categories.set(data || []);
+    }
+  }
+
+  private async fetchMaterials(): Promise<void> {
+    const project = this.project();
+    const { data, error } = await this.supabase
+      .from('materials')
+      .select('*')
+      .or(`is_global.eq.true,project_id.eq.${project?.id || '00000000-0000-0000-0000-000000000000'}`)
+      .order('name');
+
+    if (!error) {
+      this.materials.set(data || []);
+    }
+  }
+
+  private async fetchProfiles(): Promise<void> {
+    const project = this.project();
+    const { data, error } = await this.supabase
+      .from('profile_types')
+      .select('*')
+      .or(`is_global.eq.true,project_id.eq.${project?.id || '00000000-0000-0000-0000-000000000000'}`)
+      .eq('is_active', true)
+      .order('name');
+
+    if (!error) {
+      this.profiles.set(data || []);
+    }
+  }
+
+  private async fetchFasteners(): Promise<void> {
+    const project = this.project();
+    const { data, error } = await this.supabase
+      .from('fastener_catalog')
+      .select('*')
+      .or(`is_global.eq.true,project_id.eq.${project?.id || '00000000-0000-0000-0000-000000000000'}`)
+      .eq('is_active', true)
+      .order('name');
+
+    if (!error) {
+      this.fasteners.set(data || []);
+    }
+  }
+
+  async fetchSubsystemComponents(subsystemId: string): Promise<Component[]> {
+    // Track the current subsystem
+    this.currentSubsystemId.set(subsystemId);
 
     const { data, error } = await this.supabase
       .from('components')
@@ -222,10 +445,34 @@ export class SupabaseService {
       .eq('subsystem_id', subsystemId)
       .order('display_order');
 
-    if (!error && data) {
-      const currentComponents = this.components();
-      const others = currentComponents.filter(c => c.subsystem_id !== subsystemId);
-      this.components.set([...others, ...data]);
+    if (!error) {
+      this.components.set(data || []);
+      return data || [];
+    }
+
+    console.error('Error fetching components:', error);
+    return [];
+  }
+
+  private async fetchFastenerShoppingList(projectId: string): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('v_fastener_shopping_list')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (!error) {
+      this.fastenerShoppingList.set(data || []);
+    }
+  }
+
+  private async fetchInventory(projectId: string): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('v_inventory')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (!error) {
+      this.inventory.set(data || []);
     }
   }
 
@@ -234,7 +481,9 @@ export class SupabaseService {
   // ============================================================================
 
   async updateProject(projectId: string, data: Partial<Project>): Promise<boolean> {
+    this.saving.set(true);
     const { error } = await this.supabase.from('projects').update(data).eq('id', projectId);
+    this.saving.set(false);
     if (!error) {
       await this.fetchAllData();
       return true;
@@ -273,17 +522,43 @@ export class SupabaseService {
     return false;
   }
 
+  async duplicateSubsystem(subsystemId: string): Promise<boolean> {
+    const original = this.subsystems().find(s => s.id === subsystemId);
+    if (!original) return false;
+
+    const { id, created_at, updated_at, ...data } = original;
+    const newData = {
+      ...data,
+      name: `${original.name} (Copy)`,
+      display_order: this.subsystems().length + 1
+    };
+
+    return this.createSubsystem(newData);
+  }
+
   // ============================================================================
   // COMPONENT OPERATIONS
   // ============================================================================
 
   async addComponent(data: Partial<Component>): Promise<boolean> {
+    this.saving.set(true);
     const { error } = await this.supabase.from('components').insert(data);
+    this.saving.set(false);
+
     if (!error) {
+      // Immediately refresh components for the subsystem
       if (data.subsystem_id) {
         await this.fetchSubsystemComponents(data.subsystem_id);
       }
-      await this.fetchAllData();
+      // Also refresh summaries
+      const project = this.project();
+      if (project) {
+        await Promise.all([
+          this.fetchProjectSummary(project.id),
+          this.fetchSubsystemSummary(project.id),
+          this.fetchCategorySummary(project.id),
+        ]);
+      }
       return true;
     }
     console.error('Error adding component:', error);
@@ -291,26 +566,50 @@ export class SupabaseService {
   }
 
   async updateComponent(componentId: string, data: Partial<Component>): Promise<boolean> {
+    this.saving.set(true);
     const { error } = await this.supabase.from('components').update(data).eq('id', componentId);
+    this.saving.set(false);
+
     if (!error) {
-      const comp = this.components().find(c => c.id === componentId);
-      if (comp) {
-        await this.fetchSubsystemComponents(comp.subsystem_id);
+      // Refresh components for the current subsystem
+      const currentSub = this.currentSubsystemId();
+      if (currentSub) {
+        await this.fetchSubsystemComponents(currentSub);
       }
-      await this.fetchAllData();
+      // Also refresh summaries
+      const project = this.project();
+      if (project) {
+        await Promise.all([
+          this.fetchProjectSummary(project.id),
+          this.fetchSubsystemSummary(project.id),
+          this.fetchCategorySummary(project.id),
+        ]);
+      }
       return true;
     }
     return false;
   }
 
   async deleteComponent(componentId: string): Promise<boolean> {
-    const comp = this.components().find(c => c.id === componentId);
+    this.saving.set(true);
     const { error } = await this.supabase.from('components').delete().eq('id', componentId);
+    this.saving.set(false);
+
     if (!error) {
-      if (comp) {
-        await this.fetchSubsystemComponents(comp.subsystem_id);
+      // Refresh components for the current subsystem
+      const currentSub = this.currentSubsystemId();
+      if (currentSub) {
+        await this.fetchSubsystemComponents(currentSub);
       }
-      await this.fetchAllData();
+      // Also refresh summaries
+      const project = this.project();
+      if (project) {
+        await Promise.all([
+          this.fetchProjectSummary(project.id),
+          this.fetchSubsystemSummary(project.id),
+          this.fetchCategorySummary(project.id),
+        ]);
+      }
       return true;
     }
     return false;
@@ -329,6 +628,15 @@ export class SupabaseService {
     return false;
   }
 
+  async updateMaterial(materialId: string, data: Partial<Material>): Promise<boolean> {
+    const { error } = await this.supabase.from('materials').update(data).eq('id', materialId);
+    if (!error) {
+      await this.fetchAllData();
+      return true;
+    }
+    return false;
+  }
+
   async deleteMaterial(materialId: string): Promise<boolean> {
     const { error } = await this.supabase.from('materials').delete().eq('id', materialId);
     if (!error) {
@@ -338,12 +646,35 @@ export class SupabaseService {
     return false;
   }
 
+  async duplicateMaterial(materialId: string): Promise<boolean> {
+    const original = this.materials().find(m => m.id === materialId);
+    if (!original || original.is_global) return false;
+
+    const { id, created_at, updated_at, is_global, ...data } = original;
+    const newData = {
+      ...data,
+      name: `${original.name} (Copy)`,
+      project_id: this.project()?.id
+    };
+
+    return this.addMaterial(newData);
+  }
+
   // ============================================================================
   // PROFILE OPERATIONS
   // ============================================================================
 
   async addProfile(data: Partial<ProfileType>): Promise<boolean> {
     const { error } = await this.supabase.from('profile_types').insert(data);
+    if (!error) {
+      await this.fetchAllData();
+      return true;
+    }
+    return false;
+  }
+
+  async updateProfile(profileId: string, data: Partial<ProfileType>): Promise<boolean> {
+    const { error } = await this.supabase.from('profile_types').update(data).eq('id', profileId);
     if (!error) {
       await this.fetchAllData();
       return true;
@@ -360,12 +691,35 @@ export class SupabaseService {
     return false;
   }
 
+  async duplicateProfile(profileId: string): Promise<boolean> {
+    const original = this.profiles().find(p => p.id === profileId);
+    if (!original || original.is_global) return false;
+
+    const { id, created_at, updated_at, is_global, ...data } = original;
+    const newData = {
+      ...data,
+      name: `${original.name} (Copy)`,
+      project_id: this.project()?.id
+    };
+
+    return this.addProfile(newData);
+  }
+
   // ============================================================================
   // FASTENER OPERATIONS
   // ============================================================================
 
   async addFastener(data: Partial<Fastener>): Promise<boolean> {
     const { error } = await this.supabase.from('fastener_catalog').insert(data);
+    if (!error) {
+      await this.fetchAllData();
+      return true;
+    }
+    return false;
+  }
+
+  async updateFastener(fastenerId: string, data: Partial<Fastener>): Promise<boolean> {
+    const { error } = await this.supabase.from('fastener_catalog').update(data).eq('id', fastenerId);
     if (!error) {
       await this.fetchAllData();
       return true;
@@ -380,6 +734,20 @@ export class SupabaseService {
       return true;
     }
     return false;
+  }
+
+  async duplicateFastener(fastenerId: string): Promise<boolean> {
+    const original = this.fasteners().find(f => f.id === fastenerId);
+    if (!original || original.is_global) return false;
+
+    const { id, created_at, updated_at, is_global, ...data } = original;
+    const newData = {
+      ...data,
+      name: `${original.name} (Copy)`,
+      project_id: this.project()?.id
+    };
+
+    return this.addFastener(newData);
   }
 
   // ============================================================================
