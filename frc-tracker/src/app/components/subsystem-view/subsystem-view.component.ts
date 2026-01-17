@@ -1,5 +1,5 @@
-import { Component, Input, Output, EventEmitter, inject, signal, computed, effect, OnChanges, SimpleChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, Input, Output, EventEmitter, inject, signal, computed, OnChanges, SimpleChanges } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../../services/supabase.service';
 import {
@@ -21,7 +21,7 @@ interface ComponentTypeOption {
 @Component({
   selector: 'app-subsystem-view',
   standalone: true,
-  imports: [CommonModule, FormsModule, GlassCardComponent, StatCardComponent, ButtonComponent, ModalComponent],
+  imports: [CommonModule, FormsModule, DecimalPipe, GlassCardComponent, StatCardComponent, ButtonComponent, ModalComponent],
   template: `
     @if (subsystem) {
       <div class="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 w-full max-w-full box-border">
@@ -66,7 +66,7 @@ interface ComponentTypeOption {
           />
           <app-stat-card
             title="Components"
-            [value]="componentsLocal().length.toString()"
+            [value]="totalComponentCount().toString()"
             icon="box"
             color="cyan"
           />
@@ -82,20 +82,23 @@ interface ComponentTypeOption {
         </div>
 
         <!-- Category Filter -->
-        <div class="flex gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin">
+        <div class="flex flex-wrap gap-2 mb-4 lg:mb-6">
           <button
             (click)="activeCategory.set('all')"
-            [class]="getCategoryButtonClass('all')"
+            [class]="activeCategory() === 'all'
+              ? 'px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30'
+              : 'px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 transition-colors'"
           >
-            All ({{ componentsLocal().length }})
+            All
           </button>
           @for (cat of categories; track cat.id) {
             <button
               (click)="activeCategory.set(cat.id)"
-              [class]="getCategoryButtonClass(cat.id)"
+              [class]="activeCategory() === cat.id
+                ? 'px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                : 'px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 transition-colors'"
             >
-              <span class="w-2 h-2 rounded-full flex-shrink-0" [style.backgroundColor]="cat.color"></span>
-              <span class="truncate">{{ cat.name }} ({{ getCategoryCount(cat.id) }})</span>
+              {{ cat.name }}
             </button>
           }
         </div>
@@ -103,80 +106,43 @@ interface ComponentTypeOption {
         <!-- Components Table -->
         <app-glass-card>
           <div class="overflow-x-auto">
-            <table class="w-full min-w-[500px]">
+            <table class="w-full min-w-[600px]">
               <thead>
                 <tr class="border-b border-white/10">
-                  <th class="text-left px-3 sm:px-5 py-3 sm:py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Component</th>
-                  <th class="text-left px-3 sm:px-5 py-3 sm:py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:table-cell">Category</th>
-                  <th class="text-left px-3 sm:px-5 py-3 sm:py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden md:table-cell">Material</th>
-                  <th class="text-center px-3 sm:px-5 py-3 sm:py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Qty</th>
-                  <th class="text-right px-3 sm:px-5 py-3 sm:py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Unit Weight</th>
-                  <th class="text-right px-3 sm:px-5 py-3 sm:py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Total</th>
-                  <th class="text-center px-3 sm:px-5 py-3 sm:py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider w-12 sm:w-16">Actions</th>
+                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Name</th>
+                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Category</th>
+                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Material</th>
+                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Qty</th>
+                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Unit Wt</th>
+                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Total</th>
+                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider w-16"></th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-white/5">
                 @for (comp of filteredComponents(); track comp.id) {
                   <tr class="hover:bg-white/5 transition-colors">
                     <td class="px-3 sm:px-5 py-3 sm:py-4">
-                      <div class="min-w-0">
-                        <p class="text-white font-medium truncate max-w-[150px] sm:max-w-none">{{ comp.name }}</p>
-                        <!-- Show category on mobile -->
-                        <div class="sm:hidden mt-1">
-                          @if (getCategory(comp.category_id); as cat) {
-                            <span
-                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
-                              [style.backgroundColor]="cat.color + '20'"
-                              [style.color]="cat.color"
-                            >
-                              {{ cat.name }}
-                            </span>
-                          }
-                        </div>
-                        @if (comp.properties && hasProperties(comp.properties)) {
-                          <p class="text-xs text-slate-500 mt-1 truncate max-w-[150px] sm:max-w-none">
-                            {{ formatProperties(comp.properties) }}
-                          </p>
-                        }
-                      </div>
-                    </td>
-                    <td class="px-3 sm:px-5 py-3 sm:py-4 hidden sm:table-cell">
-                      @if (getCategory(comp.category_id); as cat) {
-                        <span
-                          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium"
-                          [style.backgroundColor]="cat.color + '20'"
-                          [style.color]="cat.color"
-                        >
-                          {{ cat.name }}
-                        </span>
+                      <div class="font-medium text-white text-sm truncate max-w-[150px] sm:max-w-none">{{ comp.name }}</div>
+                      @if (comp.notes) {
+                        <div class="text-xs text-slate-500 truncate max-w-[150px] sm:max-w-none">{{ comp.notes }}</div>
                       }
                     </td>
-                    <td class="px-3 sm:px-5 py-3 sm:py-4 hidden md:table-cell">
-                      @if (comp.fastener_id) {
-                        <span class="text-slate-400 text-sm">—</span>
-                      } @else {
-                        <select
-                          [ngModel]="comp.material_id"
-                          (ngModelChange)="updateMaterial(comp.id, $event)"
-                          class="bg-slate-800/50 border border-white/10 rounded-lg px-2 py-1 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500/50 max-w-[100px] lg:max-w-[120px]"
-                        >
-                          <option value="">Select...</option>
-                          @for (mat of materials; track mat.id) {
-                            <option [value]="mat.id">{{ mat.name }}</option>
-                          }
-                        </select>
-                      }
+                    <td class="px-3 sm:px-5 py-3 sm:py-4 hidden lg:table-cell">
+                      <span class="text-slate-400 text-sm">{{ getCategory(comp.category_id)?.name || '—' }}</span>
+                    </td>
+                    <td class="px-3 sm:px-5 py-3 sm:py-4 hidden lg:table-cell">
+                      <span class="text-slate-400 text-sm">{{ getMaterial(comp.material_id)?.name || '—' }}</span>
                     </td>
                     <td class="px-3 sm:px-5 py-3 sm:py-4 text-center">
                       <input
                         type="number"
+                        [value]="comp.quantity"
+                        (change)="updateQuantity(comp.id, $any($event.target).valueAsNumber)"
                         min="1"
-                        [ngModel]="comp.quantity"
-                        (ngModelChange)="updateQuantity(comp.id, $event)"
-                        class="w-12 sm:w-16 bg-slate-800/50 border border-white/10 rounded-lg px-1 sm:px-2 py-1 sm:py-1.5 text-xs sm:text-sm text-white text-center focus:outline-none focus:border-purple-500/50"
+                        class="w-12 sm:w-16 bg-slate-800/50 border border-white/10 rounded-lg px-2 py-1 text-center text-white text-sm focus:outline-none focus:border-purple-500/50"
                       />
                     </td>
-                    <td class="px-3 sm:px-5 py-3 sm:py-4 text-right hidden lg:table-cell">
+                    <td class="px-3 sm:px-5 py-3 sm:py-4 text-right">
                       <span [class]="comp.is_weight_calculated ? 'text-cyan-400' : 'text-white'" class="text-sm">
                         {{ supabase.formatWeight(comp.weight_per_unit_kg) }}
                       </span>
@@ -331,13 +297,13 @@ interface ComponentTypeOption {
                     >
                       <option value="">Select material...</option>
                       @for (mat of materials; track mat.id) {
-                        <option [value]="mat.id">{{ mat.name }} ({{ mat.density_kg_m3 }} kg/m³)</option>
+                        <option [value]="mat.id">{{ mat.name }} ({{ formatDensity(mat.density_kg_m3) }})</option>
                       }
                     </select>
                   </div>
                 </div>
 
-                <!-- Length input - ALWAYS show for profiles -->
+                <!-- Length input - with unit conversion -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div class="space-y-1.5">
                     <label class="block text-xs font-medium text-slate-400">Length</label>
@@ -345,13 +311,17 @@ interface ComponentTypeOption {
                       <input
                         type="number"
                         step="0.1"
-                        [ngModel]="newComponent.properties['length_mm']"
-                        (ngModelChange)="updateProperty('length_mm', $event)"
+                        min="0"
+                        [ngModel]="lengthInputValue()"
+                        (ngModelChange)="updateLengthInput($event)"
                         placeholder="0"
                         class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 pr-12"
                       />
-                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">mm</span>
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ getLengthUnit() }}</span>
                     </div>
+                    @if (lengthInMm() && isImperial()) {
+                      <span class="text-xs text-slate-500">{{ lengthInMm() | number:'1.1-1' }} mm</span>
+                    }
                   </div>
                   <div class="space-y-1.5">
                     <label class="block text-xs font-medium text-slate-400">Quantity</label>
@@ -367,17 +337,17 @@ interface ComponentTypeOption {
                     <div class="relative">
                       <input
                         type="text"
-                        [value]="newComponent.weight_per_unit_kg || '—'"
+                        [value]="getCalculatedWeightDisplay()"
                         readonly
                         class="w-full bg-slate-900/50 border border-white/5 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-cyan-400 pr-12 cursor-not-allowed"
                       />
-                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">kg</span>
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ getWeightUnit() }}</span>
                     </div>
                   </div>
                 </div>
 
-                <!-- Additional profile-specific inputs -->
-                @if (selectedProfile() && hasAdditionalInputs()) {
+                <!-- Additional profile-specific inputs (CORRECTED) -->
+                @if (currentProfile() && hasAdditionalInputs()) {
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2 border-t border-white/5">
                     @for (input of additionalProfileInputs(); track input.key) {
                       <div class="space-y-1.5">
@@ -386,15 +356,19 @@ interface ComponentTypeOption {
                           <input
                             type="number"
                             [step]="input.step || 0.1"
-                            [ngModel]="newComponent.properties[input.key]"
+                            [ngModel]="getPropertyDisplayValue(input.key)"
                             (ngModelChange)="updateProperty(input.key, $event)"
-                            [placeholder]="input.default?.toString() || ''"
+                            placeholder="0"
                             class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 pr-12"
                           />
                           @if (input.unit) {
                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ input.unit }}</span>
                           }
                         </div>
+                        <!-- Show mm conversion when in imperial mode for length properties -->
+                        @if (isImperial() && input.key.includes('_mm') && newComponent.properties[input.key]) {
+                          <span class="text-xs text-slate-500">{{ newComponent.properties[input.key] | number:'1.1-1' }} mm</span>
+                        }
                       </div>
                     }
                   </div>
@@ -404,51 +378,28 @@ interface ComponentTypeOption {
 
             <!-- Fastener Form -->
             @if (selectedComponentType() === 'fastener') {
-              <div class="space-y-4 p-3 sm:p-4 rounded-xl bg-gradient-to-br from-rose-500/10 to-transparent border border-rose-500/20">
-                <h4 class="text-sm font-semibold text-rose-400 flex items-center gap-2">
+              <div class="space-y-4 p-3 sm:p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20">
+                <h4 class="text-sm font-semibold text-amber-400 flex items-center gap-2">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                   </svg>
-                  Fastener from Catalog
+                  Fastener
                 </h4>
 
                 <div class="space-y-1.5">
-                  <label class="block text-xs font-medium text-slate-400">Select Fastener</label>
+                  <label class="block text-xs font-medium text-slate-400">Fastener Type</label>
                   <select
                     [(ngModel)]="newComponent.fastener_id"
                     (ngModelChange)="onFastenerChange()"
-                    class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white focus:outline-none focus:border-rose-500/50"
+                    class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50"
                   >
-                    <option value="">Choose a fastener...</option>
-                    @for (f of activeFasteners(); track f.id) {
-                      <option [value]="f.id">{{ f.name }} ({{ supabase.formatWeight(f.weight_per_unit_kg, 'g') }}/ea)</option>
+                    <option value="">Select fastener...</option>
+                    @for (fastener of activeFasteners(); track fastener.id) {
+                      <option [value]="fastener.id">{{ fastener.name }} ({{ supabase.formatWeight(fastener.weight_per_unit_kg, 'g') }}/ea)</option>
                     }
                   </select>
                 </div>
-
-                @if (selectedFastener()) {
-                  <div class="p-3 rounded-lg bg-slate-800/50 text-sm">
-                    <div class="grid grid-cols-2 gap-3 sm:gap-4 text-slate-300">
-                      <div>
-                        <span class="text-slate-500">Thread:</span>
-                        {{ selectedFastener()?.thread_size }}
-                      </div>
-                      <div>
-                        <span class="text-slate-500">Length:</span>
-                        {{ supabase.formatLength(selectedFastener()?.length_mm) }}
-                      </div>
-                      <div>
-                        <span class="text-slate-500">Head:</span>
-                        {{ selectedFastener()?.head_type || '—' }}
-                      </div>
-                      <div>
-                        <span class="text-slate-500">Material:</span>
-                        {{ selectedFastener()?.material || '—' }}
-                      </div>
-                    </div>
-                  </div>
-                }
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div class="space-y-1.5">
@@ -457,7 +408,7 @@ interface ComponentTypeOption {
                       type="number"
                       min="1"
                       [(ngModel)]="newComponent.quantity"
-                      class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white focus:outline-none focus:border-rose-500/50"
+                      class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50"
                     />
                   </div>
                   <div class="space-y-1.5">
@@ -465,11 +416,10 @@ interface ComponentTypeOption {
                     <div class="relative">
                       <input
                         type="text"
-                        [value]="newComponent.weight_per_unit_kg || '—'"
+                        [value]="newComponent.weight_per_unit_kg ? supabase.formatWeight(parseFloat(newComponent.weight_per_unit_kg), 'g') : '—'"
                         readonly
-                        class="w-full bg-slate-900/50 border border-white/5 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-cyan-400 pr-12 cursor-not-allowed"
+                        class="w-full bg-slate-900/50 border border-white/5 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-amber-400 cursor-not-allowed"
                       />
-                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">kg</span>
                     </div>
                   </div>
                 </div>
@@ -546,11 +496,12 @@ interface ComponentTypeOption {
                       <input
                         type="number"
                         step="0.0001"
-                        [(ngModel)]="newComponent.weight_per_unit_kg"
+                        [ngModel]="weightInputValue()"
+                        (ngModelChange)="updateWeightInput($event)"
                         placeholder="0.0000"
                         class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 pr-12"
                       />
-                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">kg</span>
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ getWeightUnit() }}</span>
                     </div>
                   </div>
                 </div>
@@ -564,7 +515,7 @@ interface ComponentTypeOption {
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
                   </svg>
-                  Custom / Other Part
+                  Custom Part
                 </h4>
 
                 <div class="space-y-1.5">
@@ -606,11 +557,12 @@ interface ComponentTypeOption {
                       <input
                         type="number"
                         step="0.0001"
-                        [(ngModel)]="newComponent.weight_per_unit_kg"
+                        [ngModel]="weightInputValue()"
+                        (ngModelChange)="updateWeightInput($event)"
                         placeholder="0.0000"
                         class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500/50 pr-12"
                       />
-                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">kg</span>
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ getWeightUnit() }}</span>
                     </div>
                   </div>
                 </div>
@@ -627,7 +579,7 @@ interface ComponentTypeOption {
               </div>
             }
 
-            <!-- Weight Preview - Fixed padding -->
+            <!-- Weight Preview -->
             @if (canShowWeightPreview()) {
               <div class="mt-4 sm:mt-6">
                 <app-glass-card [glow]="true">
@@ -677,6 +629,15 @@ export class SubsystemViewComponent implements OnChanges {
   isAddingComponent = signal(false);
   selectedComponentType = signal<ComponentType | null>(null);
   componentsLocal = signal<ComponentModel[]>([]);
+  
+  // Signal for length input to handle unit conversion properly
+  lengthInputValue = signal<number | null>(null);
+  
+  // Signal for weight input in user units (lb or kg)
+  weightInputValue = signal<number | null>(null);
+  
+  // Signal to track profile selection for reactivity
+  currentProfileId = signal<string>('');
 
   // Component type options
   componentTypes: ComponentTypeOption[] = [
@@ -686,9 +647,10 @@ export class SubsystemViewComponent implements OnChanges {
     { value: 'custom', label: 'Custom Part', description: 'Custom fabricated or other', icon: 'custom' }
   ];
 
+  // Form state
   newComponent: NewComponent & { part_number?: string; supplier?: string } = this.getEmptyComponent();
 
-  // Lifecycle - cargar componentes cuando cambia el subsystem
+  // Lifecycle
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['subsystem'] && this.subsystem) {
       this.loadComponents();
@@ -717,6 +679,10 @@ export class SubsystemViewComponent implements OnChanges {
     return this.componentsLocal().reduce((sum, c) => sum + (parseFloat(c.weight_per_unit_kg as any) || 0) * c.quantity, 0);
   });
 
+  totalComponentCount = computed(() => {
+    return this.componentsLocal().reduce((sum, c) => sum + (c.quantity || 1), 0);
+  });
+
   budgetPercent = computed(() => {
     if (!this.subsystem?.weight_budget_kg) return 0;
     return (this.subsystemWeight() / this.subsystem.weight_budget_kg) * 100;
@@ -726,8 +692,21 @@ export class SubsystemViewComponent implements OnChanges {
     return this.filteredComponents().reduce((sum, c) => sum + (parseFloat(c.weight_per_unit_kg as any) || 0) * c.quantity, 0);
   });
 
-  selectedProfile = computed(() => {
-    return this.profiles.find(p => p.id === this.newComponent.profile_type_id) || null;
+  // Computed that depends on signal for reactivity
+  currentProfile = computed(() => {
+    const id = this.currentProfileId();
+    return this.profiles.find(p => p.id === id) || null;
+  });
+
+  // Computed for length in mm (for display of conversion)
+  lengthInMm = computed(() => {
+    const value = this.lengthInputValue();
+    if (value === null || value <= 0) return null;
+    
+    if (this.isImperial()) {
+      return this.supabase.inToMm(value);
+    }
+    return value;
   });
 
   selectedFastener = computed(() => {
@@ -742,35 +721,102 @@ export class SubsystemViewComponent implements OnChanges {
     return this.fasteners.filter(f => f.is_active);
   });
 
-  // Categories for COTS (electronics, hardware, pneumatics, COTS)
   cotsCategories = computed(() => {
     const allowedSlugs = ['electronics', 'hardware', 'pneumatics', 'cots'];
     return this.categories.filter(c => allowedSlugs.includes(c.slug?.toLowerCase() || ''));
   });
 
-  // Categories for Custom parts (custom-parts, other, structure, hardware)
   customCategories = computed(() => {
-    const excludedSlugs = ['fasteners']; // Fasteners have their own flow
+    const excludedSlugs = ['fasteners'];
     return this.categories.filter(c => !excludedSlugs.includes(c.slug?.toLowerCase() || ''));
   });
 
-  // Additional profile inputs (beyond length)
+  // CORRECTED: additionalProfileInputs now respects global units
   additionalProfileInputs = computed(() => {
-    const profile = this.selectedProfile();
+    const profile = this.currentProfile();
     if (!profile) return [];
 
     const inputs = this.supabase.getProfileInputs(profile);
-    // Filter out length_mm since we already show it
+    const isImperial = this.isImperial();
+    
     return inputs
       .filter(i => i.key !== 'length_mm')
-      .map(i => ({
-        ...i,
-        unit: i.key.includes('mm') ? 'mm' : i.key.includes('kg') ? 'kg' : ''
-      }));
+      .map(i => {
+        // Determine correct unit based on global unit system
+        let unit = '';
+        if (i.key.includes('_mm')) {
+          unit = isImperial ? 'in' : 'mm';
+        } else if (i.key.includes('_kg')) {
+          unit = isImperial ? 'lb' : 'kg';
+        }
+        
+        return {
+          ...i,
+          unit,
+          // Flag to know if conversion is needed
+          needsConversion: i.key.includes('_mm') || i.key.includes('_kg')
+        };
+      });
   });
+
+  // Helper methods
+  isImperial(): boolean {
+    return this.supabase.project()?.unit_system === 'imperial';
+  }
+
+  getLengthUnit(): string {
+    return this.isImperial() ? 'in' : 'mm';
+  }
+
+  getWeightUnit(): string {
+    return this.isImperial() ? 'lb' : 'kg';
+  }
+
+  formatDensity(densityKgM3: number): string {
+    if (this.isImperial()) {
+      // Convert kg/m³ to lb/in³
+      const lbPerIn3 = densityKgM3 * 0.0000361273;
+      return `${lbPerIn3.toFixed(6)} lb/in³`;
+    }
+    return `${densityKgM3} kg/m³`;
+  }
+
+  getCalculatedWeightDisplay(): string {
+    const weight = parseFloat(this.newComponent.weight_per_unit_kg);
+    if (!weight || weight <= 0) return '—';
+    
+    if (this.isImperial()) {
+      return this.supabase.kgToLb(weight).toFixed(4);
+    }
+    return weight.toFixed(6);
+  }
 
   hasAdditionalInputs(): boolean {
     return this.additionalProfileInputs().length > 0;
+  }
+
+  // NEW: Get display value for additional property inputs (converts from internal mm/kg to user units)
+  getPropertyDisplayValue(key: string): number | null {
+    const internalValue = this.newComponent.properties[key];
+    if (internalValue === undefined || internalValue === null) return null;
+    
+    const numValue = parseFloat(internalValue) || 0;
+    if (numValue <= 0) return null;
+    
+    // Convert from internal units to user units
+    if (key.includes('_mm')) {
+      if (this.isImperial()) {
+        return parseFloat(this.supabase.mmToIn(numValue).toFixed(4));
+      }
+      return numValue;
+    } else if (key.includes('_kg')) {
+      if (this.isImperial()) {
+        return parseFloat(this.supabase.kgToLb(numValue).toFixed(4));
+      }
+      return numValue;
+    }
+    
+    return numValue;
   }
 
   getEmptyComponent(): NewComponent & { part_number?: string; supplier?: string } {
@@ -789,23 +835,46 @@ export class SubsystemViewComponent implements OnChanges {
     };
   }
 
+  getCategory(id: string | undefined): ComponentCategory | undefined {
+    if (!id) return undefined;
+    return this.categories.find(c => c.id === id);
+  }
+
+  getMaterial(id: string | undefined): Material | undefined {
+    if (!id) return undefined;
+    return this.materials.find(m => m.id === id);
+  }
+
+  getTotalWeight(comp: ComponentModel): number {
+    return (parseFloat(comp.weight_per_unit_kg as any) || 0) * comp.quantity;
+  }
+
+  // Modal methods
   openAddModal(): void {
     this.newComponent = this.getEmptyComponent();
     this.selectedComponentType.set(null);
+    this.lengthInputValue.set(null);
+    this.weightInputValue.set(null);
+    this.currentProfileId.set('');
     this.isAddingComponent.set(true);
   }
 
   closeAddModal(): void {
     this.isAddingComponent.set(false);
     this.selectedComponentType.set(null);
+    this.lengthInputValue.set(null);
+    this.weightInputValue.set(null);
+    this.currentProfileId.set('');
     this.newComponent = this.getEmptyComponent();
   }
 
   selectComponentType(type: ComponentType): void {
     this.selectedComponentType.set(type);
     this.newComponent = this.getEmptyComponent();
+    this.lengthInputValue.set(null);
+    this.weightInputValue.set(null);
+    this.currentProfileId.set('');
 
-    // Auto-assign category based on type
     switch (type) {
       case 'profile':
         const structureCategory = this.categories.find(c => c.slug?.toLowerCase() === 'structure');
@@ -819,7 +888,6 @@ export class SubsystemViewComponent implements OnChanges {
           this.newComponent.category_id = fastenerCategory.id;
         }
         break;
-      // COTS and Custom let user select category
     }
   }
 
@@ -828,60 +896,89 @@ export class SubsystemViewComponent implements OnChanges {
     if (this.selectedComponentType() === type) {
       switch (type) {
         case 'profile':
-          return `${base} bg-emerald-500/10 border-emerald-500/50 ring-2 ring-emerald-500/30`;
+          return `${base} bg-emerald-500/20 border-emerald-500/50 ring-2 ring-emerald-500/30`;
         case 'fastener':
-          return `${base} bg-rose-500/10 border-rose-500/50 ring-2 ring-rose-500/30`;
+          return `${base} bg-amber-500/20 border-amber-500/50 ring-2 ring-amber-500/30`;
         case 'cots':
-          return `${base} bg-blue-500/10 border-blue-500/50 ring-2 ring-blue-500/30`;
+          return `${base} bg-blue-500/20 border-blue-500/50 ring-2 ring-blue-500/30`;
         case 'custom':
-          return `${base} bg-orange-500/10 border-orange-500/50 ring-2 ring-orange-500/30`;
+          return `${base} bg-orange-500/20 border-orange-500/50 ring-2 ring-orange-500/30`;
       }
     }
-    return `${base} bg-slate-800/30 border-white/10 hover:bg-slate-800/50 hover:border-white/20`;
+    return `${base} bg-slate-800/50 border-white/10 hover:bg-slate-800 hover:border-white/20`;
   }
 
-  getCategoryButtonClass(catId: string): string {
-    const base = 'px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 flex-shrink-0';
-    if (this.activeCategory() === catId) {
-      return `${base} bg-gradient-to-r from-purple-500 to-violet-600 text-white`;
+  // Handle length input with unit conversion
+  updateLengthInput(valueInUserUnits: number | string): void {
+    const numValue = parseFloat(valueInUserUnits as string) || 0;
+    this.lengthInputValue.set(numValue > 0 ? numValue : null);
+    
+    // Convert to mm for internal calculation
+    let lengthMm: number;
+    if (this.isImperial()) {
+      lengthMm = this.supabase.inToMm(numValue);
+    } else {
+      lengthMm = numValue;
     }
-    return `${base} bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white`;
+    
+    this.newComponent.properties['length_mm'] = lengthMm > 0 ? lengthMm : undefined;
+    this.recalculateWeight();
   }
 
-  getCategoryCount(catId: string): number {
-    return this.componentsLocal().filter(c => c.category_id === catId).length;
+  // Handle weight input with unit conversion for COTS/Custom parts
+  updateWeightInput(valueInUserUnits: number | string): void {
+    const numValue = parseFloat(valueInUserUnits as string) || 0;
+    this.weightInputValue.set(numValue > 0 ? numValue : null);
+    
+    // Convert to kg for internal storage
+    let weightKg: number;
+    if (this.isImperial()) {
+      weightKg = this.supabase.lbToKg(numValue);
+    } else {
+      weightKg = numValue;
+    }
+    
+    this.newComponent.weight_per_unit_kg = weightKg > 0 ? weightKg.toFixed(8) : '';
   }
 
-  getCategory(catId: string | undefined): ComponentCategory | undefined {
-    return this.categories.find(c => c.id === catId);
-  }
-
-  hasProperties(props: Record<string, any>): boolean {
-    return props && Object.keys(props).length > 0;
-  }
-
-  formatProperties(props: Record<string, any>): string {
-    return Object.entries(props).map(([k, v]) => `${k}: ${v}`).join(' • ');
-  }
-
-  getTotalWeight(comp: ComponentModel): number {
-    return (parseFloat(comp.weight_per_unit_kg as any) || 0) * comp.quantity;
-  }
-
-  canShowWeightPreview(): boolean {
-    const type = this.selectedComponentType();
-    if (!type) return false;
-
-    const weight = parseFloat(this.newComponent.weight_per_unit_kg);
-    return weight > 0 && this.newComponent.quantity > 0;
-  }
-
-  previewWeight(): number {
-    return parseFloat(this.newComponent.weight_per_unit_kg) * this.newComponent.quantity;
+  // CORRECTED: updateProperty now handles unit conversion
+  updateProperty(key: string, value: any): void {
+    const numValue = parseFloat(value) || 0;
+    
+    // Convert to internal units (mm for lengths, kg for weights)
+    let convertedValue: number;
+    
+    if (key.includes('_mm')) {
+      // It's a length measurement
+      if (this.isImperial()) {
+        convertedValue = this.supabase.inToMm(numValue);
+      } else {
+        convertedValue = numValue;
+      }
+    } else if (key.includes('_kg')) {
+      // It's a weight
+      if (this.isImperial()) {
+        convertedValue = this.supabase.lbToKg(numValue);
+      } else {
+        convertedValue = numValue;
+      }
+    } else {
+      // No conversion needed
+      convertedValue = numValue;
+    }
+    
+    // Only save if value is greater than 0
+    this.newComponent.properties[key] = convertedValue > 0 ? convertedValue : undefined;
+    this.recalculateWeight();
   }
 
   onProfileChange(): void {
     this.newComponent.properties = {};
+    this.lengthInputValue.set(null);
+    
+    // Update the signal for reactivity
+    this.currentProfileId.set(this.newComponent.profile_type_id || '');
+    
     this.recalculateWeight();
   }
 
@@ -895,22 +992,44 @@ export class SubsystemViewComponent implements OnChanges {
     }
   }
 
-  updateProperty(key: string, value: any): void {
-    this.newComponent.properties[key] = value;
-    this.recalculateWeight();
+  recalculateWeight(): void {
+    // Get profile directly from array (not from computed) to ensure latest selection
+    const profile = this.profiles.find(p => p.id === this.newComponent.profile_type_id);
+    
+    if (!profile) {
+      this.newComponent.weight_per_unit_kg = '';
+      return;
+    }
+    
+    if (profile.calculation_method === 'fixed') {
+      return;
+    }
+    
+    const material = this.materials.find(m => m.id === this.newComponent.material_id);
+    
+    const weight = this.supabase.calculateComponentWeight(
+      profile, 
+      material || null, 
+      this.newComponent.properties
+    );
+    
+    if (weight !== null && weight > 0) {
+      this.newComponent.weight_per_unit_kg = weight.toFixed(8);
+    } else {
+      this.newComponent.weight_per_unit_kg = '';
+    }
   }
 
-  recalculateWeight(): void {
-    const profile = this.selectedProfile();
-    if (profile && profile.calculation_method !== 'fixed') {
-      const material = this.materials.find(m => m.id === this.newComponent.material_id);
-      const weight = this.supabase.calculateComponentWeight(profile, material || null, this.newComponent.properties);
-      if (weight !== null) {
-        this.newComponent.weight_per_unit_kg = weight.toFixed(8);
-      } else {
-        this.newComponent.weight_per_unit_kg = '';
-      }
-    }
+  canShowWeightPreview(): boolean {
+    const type = this.selectedComponentType();
+    if (!type) return false;
+
+    const weight = parseFloat(this.newComponent.weight_per_unit_kg);
+    return weight > 0 && this.newComponent.quantity > 0;
+  }
+
+  previewWeight(): number {
+    return parseFloat(this.newComponent.weight_per_unit_kg) * this.newComponent.quantity;
   }
 
   canSaveComponent(): boolean {
@@ -967,7 +1086,7 @@ export class SubsystemViewComponent implements OnChanges {
     if (!this.canSaveComponent() || !this.subsystem) return;
 
     const type = this.selectedComponentType();
-    const profile = this.selectedProfile();
+    const profile = this.profiles.find(p => p.id === this.newComponent.profile_type_id);
 
     const componentData: Partial<ComponentModel> = {
       subsystem_id: this.subsystem.id,
@@ -1018,5 +1137,10 @@ export class SubsystemViewComponent implements OnChanges {
       await this.loadComponents();
       await this.supabase.fetchAllData();
     }
+  }
+
+  // Helper for template
+  parseFloat(value: string): number {
+    return parseFloat(value) || 0;
   }
 }

@@ -250,10 +250,18 @@ export class SupabaseService {
 
       case 'area':
         if (!density) return null;
-        const areaM2 = ((parseFloat(properties['length_mm']) || 0) / 1000) *
-                       ((parseFloat(properties['width_mm']) || 0) / 1000);
-        const thicknessM = (parseFloat(properties['thickness_mm']) || profile.default_thickness_mm || 0) / 1000;
-        if (areaM2 <= 0 || thicknessM <= 0) return null;
+        
+        const lengthMm = parseFloat(properties['length_mm']) || 0;
+        const widthMm = parseFloat(properties['width_mm']) || 0;
+        const thicknessMm = parseFloat(properties['thickness_mm']) || 0;
+        
+        // NO usar default_thickness_mm como fallback automático
+        // El usuario debe introducir el espesor explícitamente
+        if (lengthMm <= 0 || widthMm <= 0 || thicknessMm <= 0) return null;
+        
+        const areaM2 = (lengthMm / 1000) * (widthMm / 1000);
+        const thicknessM = thicknessMm / 1000;
+        
         return areaM2 * thicknessM * density;
 
       case 'volume':

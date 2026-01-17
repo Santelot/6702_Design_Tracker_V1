@@ -335,13 +335,11 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                       </td>
                       <td class="px-4 py-3">
                         <div class="flex items-center justify-end gap-1">
-                          <!-- Edit button -->
+                          <!-- Edit button - NOW WORKS FOR GLOBAL TOO -->
                           <button
-                            (click)="!mat.is_global && editMaterial(mat)"
-                            [class]="mat.is_global 
-                              ? 'p-2 rounded-lg text-slate-600 cursor-not-allowed' 
-                              : 'p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors'"
-                            [title]="mat.is_global ? 'Cannot edit global materials' : 'Edit'"
+                            (click)="editMaterial(mat)"
+                            class="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                            [title]="mat.is_global ? 'Edit (will create copy)' : 'Edit'"
                           >
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -438,6 +436,7 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                     <tr class="border-b border-white/10">
                       <th class="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3">Profile</th>
                       <th class="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3">Cross Section</th>
+                      <th class="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3">Calc Method</th>
                       <th class="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3">Type</th>
                       <th class="text-right text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3 min-w-[140px]">Actions</th>
                     </tr>
@@ -454,6 +453,11 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                           </span>
                         </td>
                         <td class="px-4 py-3">
+                          <span [class]="getCalcMethodClass(profile.calculation_method)">
+                            {{ formatCalcMethod(profile.calculation_method) }}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3">
                           <span [class]="profile.is_global 
                             ? 'px-2 py-1 text-xs font-medium rounded-full bg-cyan-500/20 text-cyan-300' 
                             : 'px-2 py-1 text-xs font-medium rounded-full bg-purple-500/20 text-purple-300'">
@@ -462,13 +466,11 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                         </td>
                         <td class="px-4 py-3">
                           <div class="flex items-center justify-end gap-1">
-                            <!-- Edit button -->
+                            <!-- Edit button - NOW WORKS FOR GLOBAL TOO -->
                             <button
-                              (click)="!profile.is_global && editProfile(profile)"
-                              [class]="profile.is_global 
-                                ? 'p-2 rounded-lg text-slate-600 cursor-not-allowed' 
-                                : 'p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors'"
-                              [title]="profile.is_global ? 'Cannot edit global profiles' : 'Edit'"
+                              (click)="editProfile(profile)"
+                              class="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                              [title]="profile.is_global ? 'Edit (will create copy)' : 'Edit'"
                             >
                               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -542,13 +544,11 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                         </td>
                         <td class="px-4 py-3">
                           <div class="flex items-center justify-end gap-1">
-                            <!-- Edit button -->
+                            <!-- Edit button - NOW WORKS FOR GLOBAL TOO -->
                             <button
-                              (click)="!fastener.is_global && editFastener(fastener)"
-                              [class]="fastener.is_global 
-                                ? 'p-2 rounded-lg text-slate-600 cursor-not-allowed' 
-                                : 'p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors'"
-                              [title]="fastener.is_global ? 'Cannot edit global fasteners' : 'Edit'"
+                              (click)="editFastener(fastener)"
+                              class="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                              [title]="fastener.is_global ? 'Edit (will create copy)' : 'Edit'"
                             >
                               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -562,7 +562,7 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                             >
                               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                              </svg>
+                            </svg>
                             </button>
                             <!-- Delete button -->
                             <button
@@ -597,9 +597,18 @@ import { GlassCardComponent, ModalComponent } from '../shared';
               <input
                 type="text"
                 [(ngModel)]="newSubsystem.name"
-                placeholder="e.g., Drivetrain, Arm, Intake"
+                placeholder="e.g., Drivetrain, Intake, Shooter"
                 class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
               />
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-400">Description</label>
+              <textarea
+                [(ngModel)]="newSubsystem.description"
+                placeholder="Optional description"
+                rows="2"
+                class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 resize-none"
+              ></textarea>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
@@ -607,18 +616,19 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                 <input
                   type="color"
                   [(ngModel)]="newSubsystem.color"
-                  class="w-full h-10 rounded-xl cursor-pointer"
+                  class="w-full h-10 bg-slate-800/50 border border-white/10 rounded-xl cursor-pointer"
                 />
               </div>
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-400">Weight Budget (optional)</label>
+                <label class="block text-xs font-medium text-slate-400">Weight Budget</label>
                 <div class="relative">
                   <input
                     type="number"
-                    step="0.1"
+                    step="0.01"
                     [ngModel]="displaySubsystemBudget()"
                     (ngModelChange)="onSubsystemBudgetChange($event)"
-                    class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500/50 pr-12"
+                    placeholder="Optional"
+                    class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 pr-12"
                   />
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ currentWeightUnit() }}</span>
                 </div>
@@ -634,7 +644,7 @@ import { GlassCardComponent, ModalComponent } from '../shared';
               <button
                 (click)="saveSubsystem()"
                 [disabled]="!newSubsystem.name"
-                [class]="!newSubsystem.name 
+                [class]="!newSubsystem.name
                   ? 'flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-700 text-slate-500 text-sm cursor-not-allowed'
                   : 'flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-medium text-sm shadow-lg hover:shadow-purple-500/25 transition-all'"
               >
@@ -645,7 +655,7 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                   }
                 </svg>
-                {{ isEditingSubsystem() ? 'Save Changes' : 'Create Subsystem' }}
+                {{ isEditingSubsystem() ? 'Save Changes' : 'Add Subsystem' }}
               </button>
             </div>
           </div>
@@ -654,30 +664,40 @@ import { GlassCardComponent, ModalComponent } from '../shared';
 
       <!-- Add Material Modal -->
       @if (isAddingMaterial() || isEditingMaterial()) {
-        <app-modal [isOpen]="true" [title]="isEditingMaterial() ? 'Edit Material' : 'Add Material'" (closeModal)="closeMaterialModal()">
+        <app-modal [isOpen]="true" [title]="getModalTitle('material')" (closeModal)="closeMaterialModal()">
           <div class="space-y-4">
+            <!-- Warning for editing global -->
+            @if (isEditingMaterial() && editingIsGlobal()) {
+              <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm flex items-start gap-2">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <span>This will create a <strong>custom copy</strong> of the global material. The original will remain unchanged.</span>
+              </div>
+            }
             <div class="space-y-1.5">
               <label class="block text-xs font-medium text-slate-400">Name</label>
               <input
                 type="text"
                 [(ngModel)]="newMaterial.name"
-                placeholder="e.g., Aluminum 6061-T6"
+                placeholder="e.g., 6061-T6 Aluminum"
                 class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50"
               />
             </div>
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-400">Density</label>
-              <div class="relative">
-                <input
-                  type="number"
-                  [(ngModel)]="newMaterial.density_kg_m3"
-                  placeholder="e.g., 2700"
-                  class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 pr-16"
-                />
-                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">kg/m³</span>
-              </div>
-            </div>
             <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-400">Density</label>
+                <div class="relative">
+                  <input
+                    type="number"
+                    step="1"
+                    [(ngModel)]="newMaterial.density_kg_m3"
+                    placeholder="e.g., 2700"
+                    class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 pr-16"
+                  />
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">kg/m³</span>
+                </div>
+              </div>
               <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-slate-400">Category</label>
                 <select
@@ -690,12 +710,19 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                   <option value="other">Other</option>
                 </select>
               </div>
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-400">Color</label>
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-400">Color</label>
+              <div class="flex gap-3">
                 <input
                   type="color"
                   [(ngModel)]="newMaterial.color"
-                  class="w-full h-10 rounded-xl cursor-pointer"
+                  class="w-12 h-10 bg-slate-800/50 border border-white/10 rounded-xl cursor-pointer"
+                />
+                <input
+                  type="text"
+                  [(ngModel)]="newMaterial.color"
+                  class="flex-1 bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-purple-500/50"
                 />
               </div>
             </div>
@@ -714,13 +741,13 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                   : 'flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-medium text-sm shadow-lg hover:shadow-purple-500/25 transition-all'"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  @if (isEditingMaterial()) {
+                  @if (isEditingMaterial() && !editingIsGlobal()) {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                   } @else {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                   }
                 </svg>
-                {{ isEditingMaterial() ? 'Save Changes' : 'Add Material' }}
+                {{ getButtonText('material') }}
               </button>
             </div>
           </div>
@@ -729,8 +756,17 @@ import { GlassCardComponent, ModalComponent } from '../shared';
 
       <!-- Add Fastener Modal -->
       @if (isAddingFastener() || isEditingFastener()) {
-        <app-modal [isOpen]="true" [title]="isEditingFastener() ? 'Edit Fastener' : 'Add Fastener'" (closeModal)="closeFastenerModal()">
+        <app-modal [isOpen]="true" [title]="getModalTitle('fastener')" (closeModal)="closeFastenerModal()">
           <div class="space-y-4">
+            <!-- Warning for editing global -->
+            @if (isEditingFastener() && editingFastenerIsGlobal()) {
+              <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm flex items-start gap-2">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <span>This will create a <strong>custom copy</strong> of the global fastener. The original will remain unchanged.</span>
+              </div>
+            }
             <div class="space-y-1.5">
               <label class="block text-xs font-medium text-slate-400">Name</label>
               <input
@@ -817,13 +853,13 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                   : 'flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-medium text-sm shadow-lg hover:shadow-purple-500/25 transition-all'"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  @if (isEditingFastener()) {
+                  @if (isEditingFastener() && !editingFastenerIsGlobal()) {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                   } @else {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                   }
                 </svg>
-                {{ isEditingFastener() ? 'Save Changes' : 'Add Fastener' }}
+                {{ getButtonText('fastener') }}
               </button>
             </div>
           </div>
@@ -832,8 +868,17 @@ import { GlassCardComponent, ModalComponent } from '../shared';
 
       <!-- Add Profile Modal -->
       @if (isAddingProfile() || isEditingProfile()) {
-        <app-modal [isOpen]="true" [title]="isEditingProfile() ? 'Edit Profile' : 'Add Profile'" (closeModal)="closeProfileModal()">
+        <app-modal [isOpen]="true" [title]="getModalTitle('profile')" (closeModal)="closeProfileModal()">
           <div class="space-y-4">
+            <!-- Warning for editing global -->
+            @if (isEditingProfile() && editingProfileIsGlobal()) {
+              <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm flex items-start gap-2">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <span>This will create a <strong>custom copy</strong> of the global profile. The original will remain unchanged.</span>
+              </div>
+            }
             <div class="space-y-1.5">
               <label class="block text-xs font-medium text-slate-400">Name</label>
               <input
@@ -855,6 +900,14 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                   <option value="area">Area (per surface)</option>
                   <option value="volume">Volume</option>
                 </select>
+                <p class="text-xs text-slate-500">
+                  @switch (newProfile.calculation_method) {
+                    @case ('linear') { Weight = cross-section × length × density }
+                    @case ('area') { Weight = length × width × thickness × density }
+                    @case ('volume') { Weight = L × W × H × density }
+                    @case ('fixed') { Manual weight entry }
+                  }
+                </p>
               </div>
               <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-slate-400">Cross Section Area</label>
@@ -862,12 +915,16 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                   <input
                     type="number"
                     step="0.01"
-                    [(ngModel)]="newProfile.cross_section_area_mm2"
+                    [ngModel]="displayProfileArea()"
+                    (ngModelChange)="onProfileAreaChange($event)"
                     placeholder="e.g., 161.29"
                     class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 pr-14"
                   />
-                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">mm²</span>
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ areaUnit() }}</span>
                 </div>
+                @if (projectForm.unit_system === 'imperial' && newProfile.cross_section_area_mm2) {
+                  <p class="text-xs text-slate-500">{{ newProfile.cross_section_area_mm2 }} mm²</p>
+                }
               </div>
             </div>
             <div class="flex justify-end gap-3 pt-4">
@@ -885,13 +942,13 @@ import { GlassCardComponent, ModalComponent } from '../shared';
                   : 'flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white font-medium text-sm shadow-lg hover:shadow-purple-500/25 transition-all'"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  @if (isEditingProfile()) {
+                  @if (isEditingProfile() && !editingProfileIsGlobal()) {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                   } @else {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                   }
                 </svg>
-                {{ isEditingProfile() ? 'Save Changes' : 'Add Profile' }}
+                {{ getButtonText('profile') }}
               </button>
             </div>
           </div>
@@ -903,10 +960,10 @@ import { GlassCardComponent, ModalComponent } from '../shared';
         <app-modal [isOpen]="true" title="Confirm Delete" (closeModal)="deleteConfirmation.set(null)">
           <div class="space-y-4">
             <p class="text-slate-300">
-              Are you sure you want to delete <span class="text-white font-medium">{{ deleteConfirmation()?.name }}</span>?
+              Are you sure you want to delete <strong class="text-white">{{ deleteConfirmation()?.name }}</strong>?
               This action cannot be undone.
             </p>
-            <div class="flex justify-end gap-3 pt-4">
+            <div class="flex justify-end gap-3">
               <button
                 (click)="deleteConfirmation.set(null)"
                 class="px-4 py-2.5 rounded-xl text-slate-400 text-sm hover:text-white hover:bg-white/5 transition-all"
@@ -915,7 +972,7 @@ import { GlassCardComponent, ModalComponent } from '../shared';
               </button>
               <button
                 (click)="confirmDelete()"
-                class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white font-medium text-sm shadow-lg hover:shadow-rose-500/25 transition-all"
+                class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white font-medium text-sm shadow-lg"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -957,6 +1014,11 @@ export class SettingsComponent {
   isAddingFastener = signal(false);
   isEditingFastener = signal(false);
   editingFastenerId = signal<string | null>(null);
+
+  // Track if we're editing a global item (to show warning)
+  private editingGlobalMaterial = signal(false);
+  private editingGlobalProfile = signal(false);
+  private editingGlobalFastener = signal(false);
 
   deleteConfirmation = signal<{ type: string; id: string; name: string } | null>(null);
 
@@ -1002,11 +1064,71 @@ export class SettingsComponent {
   }
 
   // ============================================================================
+  // HELPER METHODS FOR GLOBAL EDITING
+  // ============================================================================
+
+  editingIsGlobal(): boolean {
+    return this.editingGlobalMaterial();
+  }
+
+  editingProfileIsGlobal(): boolean {
+    return this.editingGlobalProfile();
+  }
+
+  editingFastenerIsGlobal(): boolean {
+    return this.editingGlobalFastener();
+  }
+
+  getModalTitle(type: 'material' | 'profile' | 'fastener'): string {
+    switch (type) {
+      case 'material':
+        if (this.isEditingMaterial()) {
+          return this.editingGlobalMaterial() ? 'Copy & Edit Material' : 'Edit Material';
+        }
+        return 'Add Material';
+      case 'profile':
+        if (this.isEditingProfile()) {
+          return this.editingGlobalProfile() ? 'Copy & Edit Profile' : 'Edit Profile';
+        }
+        return 'Add Profile';
+      case 'fastener':
+        if (this.isEditingFastener()) {
+          return this.editingGlobalFastener() ? 'Copy & Edit Fastener' : 'Edit Fastener';
+        }
+        return 'Add Fastener';
+    }
+  }
+
+  getButtonText(type: 'material' | 'profile' | 'fastener'): string {
+    switch (type) {
+      case 'material':
+        if (this.isEditingMaterial()) {
+          return this.editingGlobalMaterial() ? 'Create Custom Copy' : 'Save Changes';
+        }
+        return 'Add Material';
+      case 'profile':
+        if (this.isEditingProfile()) {
+          return this.editingGlobalProfile() ? 'Create Custom Copy' : 'Save Changes';
+        }
+        return 'Add Profile';
+      case 'fastener':
+        if (this.isEditingFastener()) {
+          return this.editingGlobalFastener() ? 'Create Custom Copy' : 'Save Changes';
+        }
+        return 'Add Fastener';
+    }
+  }
+
+  // ============================================================================
   // UNIT CONVERSION HELPERS
   // ============================================================================
 
   currentWeightUnit(): string {
     return this.projectForm.unit_system === 'imperial' ? 'lb' : 'kg';
+  }
+
+  areaUnit(): string {
+    return this.projectForm.unit_system === 'imperial' ? 'in²' : 'mm²';
   }
 
   displayWeightLimit(): number {
@@ -1068,12 +1190,60 @@ export class SettingsComponent {
     }
   }
 
+  // Profile area conversion
+  displayProfileArea(): string {
+    if (!this.newProfile.cross_section_area_mm2) return '';
+    const mm2 = parseFloat(this.newProfile.cross_section_area_mm2);
+    if (isNaN(mm2)) return '';
+    if (this.projectForm.unit_system === 'imperial') {
+      // Convert mm² to in²
+      return (mm2 * 0.0393701 * 0.0393701).toFixed(4);
+    }
+    return mm2.toFixed(2);
+  }
+
+  onProfileAreaChange(value: number): void {
+    if (!value) {
+      this.newProfile.cross_section_area_mm2 = '';
+      return;
+    }
+    if (this.projectForm.unit_system === 'imperial') {
+      // Convert in² to mm²
+      this.newProfile.cross_section_area_mm2 = (value / (0.0393701 * 0.0393701)).toFixed(2);
+    } else {
+      this.newProfile.cross_section_area_mm2 = value.toString();
+    }
+  }
+
   getTabClass(tabId: string): string {
     const base = 'flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200';
     if (this.activeTab() === tabId) {
       return `${base} bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg`;
     }
     return `${base} text-slate-400 hover:text-white hover:bg-white/5`;
+  }
+
+  // Calculation method display
+  formatCalcMethod(method: string | undefined): string {
+    switch (method) {
+      case 'linear': return 'Linear';
+      case 'area': return 'Area';
+      case 'volume': return 'Volume';
+      case 'fixed': return 'Fixed';
+      case 'formula': return 'Formula';
+      default: return '—';
+    }
+  }
+
+  getCalcMethodClass(method: string | undefined): string {
+    const base = 'px-2 py-1 text-xs font-medium rounded-full';
+    switch (method) {
+      case 'linear': return `${base} bg-emerald-500/20 text-emerald-300`;
+      case 'area': return `${base} bg-blue-500/20 text-blue-300`;
+      case 'volume': return `${base} bg-purple-500/20 text-purple-300`;
+      case 'fixed': return `${base} bg-slate-500/20 text-slate-300`;
+      default: return `${base} bg-slate-500/20 text-slate-400`;
+    }
   }
 
   // ============================================================================
@@ -1157,12 +1327,13 @@ export class SettingsComponent {
 
   editMaterial(mat: Material): void {
     this.newMaterial = {
-      name: mat.name,
+      name: mat.is_global ? `${mat.name} (Custom)` : mat.name,
       density_kg_m3: mat.density_kg_m3.toString(),
       category: mat.category,
       color: mat.color
     };
-    this.editingMaterialId.set(mat.id);
+    this.editingGlobalMaterial.set(mat.is_global);
+    this.editingMaterialId.set(mat.is_global ? null : mat.id); // If global, we'll create new
     this.isEditingMaterial.set(true);
   }
 
@@ -1170,6 +1341,7 @@ export class SettingsComponent {
     this.isAddingMaterial.set(false);
     this.isEditingMaterial.set(false);
     this.editingMaterialId.set(null);
+    this.editingGlobalMaterial.set(false);
     this.newMaterial = this.getEmptyMaterial();
   }
 
@@ -1185,7 +1357,8 @@ export class SettingsComponent {
       is_global: false
     };
 
-    if (this.isEditingMaterial() && this.editingMaterialId()) {
+    // If editing a non-global material, update it. Otherwise, create new.
+    if (this.isEditingMaterial() && this.editingMaterialId() && !this.editingGlobalMaterial()) {
       await this.supabase.updateMaterial(this.editingMaterialId()!, data);
     } else {
       await this.supabase.addMaterial(data);
@@ -1212,11 +1385,12 @@ export class SettingsComponent {
 
   editProfile(profile: ProfileType): void {
     this.newProfile = {
-      name: profile.name,
-      calculation_method: profile.calculation_method,
+      name: profile.is_global ? `${profile.name} (Custom)` : profile.name,
+      calculation_method: profile.calculation_method || 'linear',
       cross_section_area_mm2: profile.cross_section_area_mm2?.toString() || ''
     };
-    this.editingProfileId.set(profile.id);
+    this.editingGlobalProfile.set(profile.is_global);
+    this.editingProfileId.set(profile.is_global ? null : profile.id); // If global, we'll create new
     this.isEditingProfile.set(true);
   }
 
@@ -1224,6 +1398,7 @@ export class SettingsComponent {
     this.isAddingProfile.set(false);
     this.isEditingProfile.set(false);
     this.editingProfileId.set(null);
+    this.editingGlobalProfile.set(false);
     this.newProfile = this.getEmptyProfile();
   }
 
@@ -1239,7 +1414,8 @@ export class SettingsComponent {
       is_active: true
     };
 
-    if (this.isEditingProfile() && this.editingProfileId()) {
+    // If editing a non-global profile, update it. Otherwise, create new.
+    if (this.isEditingProfile() && this.editingProfileId() && !this.editingGlobalProfile()) {
       await this.supabase.updateProfile(this.editingProfileId()!, data);
     } else {
       await this.supabase.addProfile(data);
@@ -1266,14 +1442,15 @@ export class SettingsComponent {
 
   editFastener(fastener: Fastener): void {
     this.newFastener = {
-      name: fastener.name,
+      name: fastener.is_global ? `${fastener.name} (Custom)` : fastener.name,
       thread_standard: fastener.thread_standard,
       thread_size: fastener.thread_size,
       length_mm: fastener.length_mm.toString(),
       head_type: fastener.head_type || 'socket',
       weight_per_unit_kg: fastener.weight_per_unit_kg.toString()
     };
-    this.editingFastenerId.set(fastener.id);
+    this.editingGlobalFastener.set(fastener.is_global);
+    this.editingFastenerId.set(fastener.is_global ? null : fastener.id); // If global, we'll create new
     this.isEditingFastener.set(true);
   }
 
@@ -1281,6 +1458,7 @@ export class SettingsComponent {
     this.isAddingFastener.set(false);
     this.isEditingFastener.set(false);
     this.editingFastenerId.set(null);
+    this.editingGlobalFastener.set(false);
     this.newFastener = this.getEmptyFastener();
   }
 
@@ -1300,7 +1478,8 @@ export class SettingsComponent {
       min_purchase_qty: 1
     };
 
-    if (this.isEditingFastener() && this.editingFastenerId()) {
+    // If editing a non-global fastener, update it. Otherwise, create new.
+    if (this.isEditingFastener() && this.editingFastenerId() && !this.editingGlobalFastener()) {
       await this.supabase.updateFastener(this.editingFastenerId()!, data);
     } else {
       await this.supabase.addFastener(data);
