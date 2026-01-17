@@ -115,7 +115,7 @@ interface ComponentTypeOption {
                   <th class="px-3 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Qty</th>
                   <th class="px-3 sm:px-5 py-3 sm:py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Unit Wt</th>
                   <th class="px-3 sm:px-5 py-3 sm:py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Total</th>
-                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider w-16"></th>
+                  <th class="px-3 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider w-24"></th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-white/5">
@@ -156,14 +156,28 @@ interface ComponentTypeOption {
                       </span>
                     </td>
                     <td class="px-3 sm:px-5 py-3 sm:py-4 text-center">
-                      <button
-                        (click)="deleteComponent(comp.id)"
-                        class="p-1.5 sm:p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                      </button>
+                      <div class="flex items-center justify-center gap-1">
+                        <!-- Edit Button -->
+                        <button
+                          (click)="openEditModal(comp)"
+                          class="p-1.5 sm:p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
+                          title="Edit component"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                          </svg>
+                        </button>
+                        <!-- Delete Button -->
+                        <button
+                          (click)="deleteComponent(comp.id)"
+                          class="p-1.5 sm:p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                          title="Delete component"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }
@@ -201,58 +215,95 @@ interface ComponentTypeOption {
           </div>
         </app-glass-card>
 
-        <!-- Add Component Modal -->
+        <!-- Add/Edit Component Modal -->
         <app-modal
-          [isOpen]="isAddingComponent()"
-          title="Add Component"
+          [isOpen]="isModalOpen()"
+          [title]="isEditing() ? 'Edit Component' : 'Add Component'"
           size="lg"
-          (closeModal)="closeAddModal()"
+          (closeModal)="closeModal()"
         >
           <div class="space-y-4 sm:space-y-6">
-            <!-- Component Type Selector -->
-            <div class="space-y-3">
-              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">Component Type</label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                @for (type of componentTypes; track type.value) {
-                  <button
-                    (click)="selectComponentType(type.value)"
-                    [class]="getTypeButtonClass(type.value)"
-                  >
-                    <div class="flex items-center gap-3">
-                      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                        @switch (type.icon) {
-                          @case ('profile') {
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"></path>
-                            </svg>
+            <!-- Component Type Selector (only for add mode) -->
+            @if (!isEditing()) {
+              <div class="space-y-3">
+                <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">Component Type</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                  @for (type of componentTypes; track type.value) {
+                    <button
+                      (click)="selectComponentType(type.value)"
+                      [class]="getTypeButtonClass(type.value)"
+                    >
+                      <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+                          @switch (type.icon) {
+                            @case ('profile') {
+                              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"></path>
+                              </svg>
+                            }
+                            @case ('fastener') {
+                              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                              </svg>
+                            }
+                            @case ('cots') {
+                              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                              </svg>
+                            }
+                            @case ('custom') {
+                              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
+                              </svg>
+                            }
                           }
-                          @case ('fastener') {
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                          }
-                          @case ('cots') {
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                            </svg>
-                          }
-                          @case ('custom') {
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
-                            </svg>
-                          }
-                        }
+                        </div>
+                        <div class="text-left min-w-0">
+                          <p class="font-medium text-white text-sm sm:text-base">{{ type.label }}</p>
+                          <p class="text-xs text-slate-400 truncate">{{ type.description }}</p>
+                        </div>
                       </div>
-                      <div class="text-left min-w-0">
-                        <p class="font-medium text-white text-sm sm:text-base">{{ type.label }}</p>
-                        <p class="text-xs text-slate-400 truncate">{{ type.description }}</p>
-                      </div>
-                    </div>
-                  </button>
-                }
+                    </button>
+                  }
+                </div>
               </div>
-            </div>
+            }
+
+            <!-- Edit Mode Header - shows component type -->
+            @if (isEditing()) {
+              <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-white/10">
+                <div class="w-9 h-9 rounded-lg bg-slate-700 flex items-center justify-center">
+                  @switch (selectedComponentType()) {
+                    @case ('profile') {
+                      <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"></path>
+                      </svg>
+                    }
+                    @case ('fastener') {
+                      <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      </svg>
+                    }
+                    @case ('cots') {
+                      <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                      </svg>
+                    }
+                    @case ('custom') {
+                      <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
+                      </svg>
+                    }
+                  }
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-white">{{ getComponentTypeLabel(selectedComponentType()) }}</p>
+                  <p class="text-xs text-slate-400">Editing component</p>
+                </div>
+              </div>
+            }
 
             <!-- Profile Form -->
             @if (selectedComponentType() === 'profile') {
@@ -319,7 +370,7 @@ interface ComponentTypeOption {
                       />
                       <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ getLengthUnit() }}</span>
                     </div>
-                    @if (lengthInMm() && isImperial()) {
+                    @if (isImperial() && lengthInMm()) {
                       <span class="text-xs text-slate-500">{{ lengthInMm() | number:'1.1-1' }} mm</span>
                     }
                   </div>
@@ -339,34 +390,32 @@ interface ComponentTypeOption {
                         type="text"
                         [value]="getCalculatedWeightDisplay()"
                         readonly
-                        class="w-full bg-slate-900/50 border border-white/5 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-cyan-400 pr-12 cursor-not-allowed"
+                        class="w-full bg-slate-900/50 border border-white/5 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-cyan-400 cursor-not-allowed pr-12"
                       />
-                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ getWeightUnit() }}</span>
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-500 text-xs">{{ getWeightUnit() }}</span>
                     </div>
                   </div>
                 </div>
 
-                <!-- Additional profile-specific inputs (CORRECTED) -->
-                @if (currentProfile() && hasAdditionalInputs()) {
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2 border-t border-white/5">
+                <!-- Additional Profile Inputs -->
+                @if (hasAdditionalInputs()) {
+                  <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     @for (input of additionalProfileInputs(); track input.key) {
                       <div class="space-y-1.5">
                         <label class="block text-xs font-medium text-slate-400">{{ input.label }}</label>
                         <div class="relative">
                           <input
                             type="number"
-                            [step]="input.step || 0.1"
+                            step="0.01"
+                            min="0"
                             [ngModel]="getPropertyDisplayValue(input.key)"
                             (ngModelChange)="updateProperty(input.key, $event)"
                             placeholder="0"
-                            class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 pr-12"
+                            class="w-full bg-slate-800/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 pr-10"
                           />
-                          @if (input.unit) {
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ input.unit }}</span>
-                          }
+                          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">{{ input.unit }}</span>
                         </div>
-                        <!-- Show mm conversion when in imperial mode for length properties -->
-                        @if (isImperial() && input.key.includes('_mm') && newComponent.properties[input.key]) {
+                        @if (input.needsConversion && isImperial() && newComponent.properties[input.key]) {
                           <span class="text-xs text-slate-500">{{ newComponent.properties[input.key] | number:'1.1-1' }} mm</span>
                         }
                       </div>
@@ -595,15 +644,15 @@ interface ComponentTypeOption {
 
             <!-- Actions -->
             <div class="flex justify-end gap-2 sm:gap-3 pt-4 border-t border-white/10">
-              <app-button variant="ghost" (click)="closeAddModal()">Cancel</app-button>
+              <app-button variant="ghost" (click)="closeModal()">Cancel</app-button>
               <app-button
-                variant="primary"
-                icon="plus"
+                [variant]="isEditing() ? 'secondary' : 'primary'"
+                [icon]="isEditing() ? 'check' : 'plus'"
                 (click)="saveComponent()"
                 [disabled]="!canSaveComponent()"
               >
-                <span class="hidden sm:inline">Add Component</span>
-                <span class="sm:hidden">Add</span>
+                <span class="hidden sm:inline">{{ isEditing() ? 'Save Changes' : 'Add Component' }}</span>
+                <span class="sm:hidden">{{ isEditing() ? 'Save' : 'Add' }}</span>
               </app-button>
             </div>
           </div>
@@ -627,6 +676,8 @@ export class SubsystemViewComponent implements OnChanges {
   // Signals
   activeCategory = signal('all');
   isAddingComponent = signal(false);
+  isEditing = signal(false);
+  editingComponentId = signal<string | null>(null);
   selectedComponentType = signal<ComponentType | null>(null);
   componentsLocal = signal<ComponentModel[]>([]);
   
@@ -638,6 +689,9 @@ export class SubsystemViewComponent implements OnChanges {
   
   // Signal to track profile selection for reactivity
   currentProfileId = signal<string>('');
+
+  // Computed to check if modal is open (either add or edit mode)
+  isModalOpen = computed(() => this.isAddingComponent() || this.isEditing());
 
   // Component type options
   componentTypes: ComponentTypeOption[] = [
@@ -795,7 +849,7 @@ export class SubsystemViewComponent implements OnChanges {
     return this.additionalProfileInputs().length > 0;
   }
 
-  // NEW: Get display value for additional property inputs (converts from internal mm/kg to user units)
+  // Get display value for additional property inputs (converts from internal mm/kg to user units)
   getPropertyDisplayValue(key: string): number | null {
     const internalValue = this.newComponent.properties[key];
     if (internalValue === undefined || internalValue === null) return null;
@@ -849,6 +903,20 @@ export class SubsystemViewComponent implements OnChanges {
     return (parseFloat(comp.weight_per_unit_kg as any) || 0) * comp.quantity;
   }
 
+  getComponentTypeLabel(type: ComponentType | null): string {
+    if (!type) return '';
+    const found = this.componentTypes.find(t => t.value === type);
+    return found?.label || '';
+  }
+
+  // Determine component type from existing component
+  detectComponentType(comp: ComponentModel): ComponentType {
+    if (comp.fastener_id) return 'fastener';
+    if (comp.profile_type_id) return 'profile';
+    if (comp.part_number || comp.supplier) return 'cots';
+    return 'custom';
+  }
+
   // Modal methods
   openAddModal(): void {
     this.newComponent = this.getEmptyComponent();
@@ -856,16 +924,82 @@ export class SubsystemViewComponent implements OnChanges {
     this.lengthInputValue.set(null);
     this.weightInputValue.set(null);
     this.currentProfileId.set('');
+    this.isEditing.set(false);
+    this.editingComponentId.set(null);
     this.isAddingComponent.set(true);
   }
 
-  closeAddModal(): void {
+  openEditModal(comp: ComponentModel): void {
+    // Detect component type
+    const type = this.detectComponentType(comp);
+    this.selectedComponentType.set(type);
+    
+    // Populate form with component data
+    this.newComponent = {
+      name: comp.name || '',
+      category_id: comp.category_id || '',
+      profile_type_id: comp.profile_type_id || '',
+      material_id: comp.material_id || '',
+      fastener_id: comp.fastener_id || '',
+      quantity: comp.quantity || 1,
+      weight_per_unit_kg: comp.weight_per_unit_kg?.toString() || '',
+      properties: comp.properties ? { ...comp.properties } : {},
+      notes: comp.notes || '',
+      part_number: (comp as any).part_number || '',
+      supplier: (comp as any).supplier || ''
+    };
+
+    // Set signals for profile editing
+    if (type === 'profile') {
+      this.currentProfileId.set(comp.profile_type_id || '');
+      
+      // Set length input value (convert from mm to user units)
+      const lengthMm = comp.properties?.['length_mm'];
+      if (lengthMm) {
+        if (this.isImperial()) {
+          this.lengthInputValue.set(parseFloat(this.supabase.mmToIn(lengthMm).toFixed(4)));
+        } else {
+          this.lengthInputValue.set(lengthMm);
+        }
+      } else {
+        this.lengthInputValue.set(null);
+      }
+    }
+
+    // Set weight input for COTS/Custom (convert from kg to user units)
+    if (type === 'cots' || type === 'custom') {
+      const weightKg = parseFloat(comp.weight_per_unit_kg as any);
+      if (weightKg > 0) {
+        if (this.isImperial()) {
+          this.weightInputValue.set(parseFloat(this.supabase.kgToLb(weightKg).toFixed(4)));
+        } else {
+          this.weightInputValue.set(weightKg);
+        }
+      } else {
+        this.weightInputValue.set(null);
+      }
+    }
+
+    // Set editing state
+    this.editingComponentId.set(comp.id);
+    this.isEditing.set(true);
     this.isAddingComponent.set(false);
+  }
+
+  closeModal(): void {
+    this.isAddingComponent.set(false);
+    this.isEditing.set(false);
+    this.editingComponentId.set(null);
     this.selectedComponentType.set(null);
     this.lengthInputValue.set(null);
     this.weightInputValue.set(null);
     this.currentProfileId.set('');
     this.newComponent = this.getEmptyComponent();
+  }
+
+  // Legacy method for compatibility
+  closeAddModal(): void {
+    this.closeModal();
   }
 
   selectComponentType(type: ComponentType): void {
@@ -941,7 +1075,7 @@ export class SubsystemViewComponent implements OnChanges {
     this.newComponent.weight_per_unit_kg = weightKg > 0 ? weightKg.toFixed(8) : '';
   }
 
-  // CORRECTED: updateProperty now handles unit conversion
+  // updateProperty handles unit conversion
   updateProperty(key: string, value: any): void {
     const numValue = parseFloat(value) || 0;
     
@@ -1124,9 +1258,18 @@ export class SubsystemViewComponent implements OnChanges {
         break;
     }
 
-    const success = await this.supabase.addComponent(componentData);
+    let success = false;
+    
+    if (this.isEditing() && this.editingComponentId()) {
+      // Update existing component
+      success = await this.supabase.updateComponent(this.editingComponentId()!, componentData);
+    } else {
+      // Add new component
+      success = await this.supabase.addComponent(componentData);
+    }
+
     if (success) {
-      this.closeAddModal();
+      this.closeModal();
       await this.loadComponents();
       this.componentsChange.emit();
     }
